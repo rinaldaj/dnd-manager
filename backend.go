@@ -40,13 +40,13 @@ type Player struct {
 	Intellegence	int
 	Wisdom	int
 	Charisma	int
-	ProficiencyB	int
 	Proficienies	[]string//THis is a list of strings specifying proficiency
 	Clothes	Armor //THis is the item that is currently equiped
-	Stable	bool// this is only used when Health == 0 it is to determine if we must make death saves
-	DeathFails int //If this is ever over three player is dead
+	DeathFails int //If this is ever over three player is dead, if it is set to a negative value then the player is stable
 	Alignment	string
 	Class	string //Currently doesn't do anything
+	Race	string //Currently useless
+	Level	int //The level of the character (does not support multiclassing)
 }
 
 func routeSelectHandler(w http.ResponseWriter, r *http.Request){
@@ -55,8 +55,9 @@ func routeSelectHandler(w http.ResponseWriter, r *http.Request){
 
 
 func main(){
-	port = ":8080"
+	port := ":8080"
 	http.HandleFunc("/routelogin",routeSelectHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
+	fmt.Printf("Listening on port %s",port)
 	http.ListenAndServe(port,nil)
 }
