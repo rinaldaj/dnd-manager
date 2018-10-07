@@ -309,7 +309,7 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 		}
 	}
 	fmt.Fprintf(w,"</table>")
-	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Name</th><th>Quantity</th><th>Weight</th><th>value</th><th>Description</th></tr>")
+	fmt.Fprintf(w,"<br><div><table style=\"width:100%%\"><tr><th>Name</th><th>Quantity</th><th>Weight</th><th>value</th><th>Description</th><th>Use:</th></tr>")
 	stuffs,_ := template.ParseFiles("./stuff.html")
 	totalMass := 0.0
 	for _,i := range plas.Inventory{
@@ -331,6 +331,7 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 		//fmt.Println(thingBox)
 		stuffs.Execute(w,thingBox)
 	}
+	fmt.Fprintf(w,"</div>")
 	weightBar,_ := template.New("weightBar").Parse("<br>Weight Carried: {{.Weight}}, Carry Weight: {{.WeightMax}}<br>")
 	weightBox := struct{
 		Weight	float64

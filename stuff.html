@@ -4,5 +4,8 @@
 	<td> {{.Arm.Weight}} </td>
 	<td> {{.Arm.Value}} </td>
 	<td> {{.Arm.Description}} </td>
-	 <!-- <td> <form action="/useItem" method="post"><input type="submit" value="Use Item"><input type="hidden" name="item" value="{{.Arm.Base.Name}}"><input type="hidden" name="uname" value="{{.Uname}}"></form> </td> -->
+    <td> <form action="/useItem" method="POST">
+	<input type="submit" value="Use Item"></input>
+<input type="hidden" name="item" value="{{.Arm.Name}}"></input>
+	<input type="hidden" name="uname" value="{{.Uname}}"></input></form> </td>
 </tr>
