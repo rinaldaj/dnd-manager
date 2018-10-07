@@ -219,7 +219,9 @@ func charHandler(w http.ResponseWriter, r *http.Request){
 	plas.Class = r.FormValue("Class")
 	plas.Name = r.FormValue("name")
 	plas.Race = r.FormValue("race")
-	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name,race,speed,charisma) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q,%q,%d,%d);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name,plas.Race,plas.Speed,plas.Charisma);
+	r.ParseForm()
+	plas.Proficienies = r.Form["profc"]
+	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name,race,speed,charisma,proficiencies) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q,%q,%d,%d,%q);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name,plas.Race,plas.Speed,plas.Charisma,processToDb(plas.Proficienies));
 	_,err = DB.Query(query)
 	if err != nil{
 		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title></head><body>%q couldn't be created <br> <a href=\"./\"> Return to home? </a></body></html>",plas.Name)
@@ -288,6 +290,15 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 	fmt.Fprintf(w,"Weight Carried: %f, Carry Weight: %d",totalMass,plas.Strength * 5)
 }
 
+func processToDb(x []string) string{
+	var ret string
+	ret = ""
+	for _,i := range x{
+		ret +=i + ","
+	}
+	return strings.TrimSuffix(ret,",")
+}
+
 
 func main(){
 	dbPass = "root:@/dnd"
@@ -296,6 +307,6 @@ func main(){
 	http.HandleFunc("/makechar",charHandler)
 	http.HandleFunc("/viewCharacter",finalHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
-	fmt.Printf("Listening on port %s",port)
+	fmt.Printf("Listening on port %s\n",port)
 	http.ListenAndServe(port,nil)
 }
