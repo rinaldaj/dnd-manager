@@ -13,6 +13,7 @@ type Object interface{
 	getWeight() float32
 	getValue()	float32
 	getDescription()	string
+	getQuantity()	float32
 }
 
 
@@ -25,6 +26,8 @@ type Item struct {
 	Value	float32
 	//The description of an item
 	Description	string
+	//How many one has
+	Quantity	float32
 }
 func (i Item) getName() string{
 	return i.Name
@@ -37,6 +40,9 @@ func (i Item) getValue() float32{
 }
 func (i Item) getWeight() float32{
 	return i.Weight
+}
+func (i Item) getQuantity() float32{
+	return i.Quantity
 }
 
 type Weapon struct{
@@ -58,6 +64,9 @@ func (i Weapon) getValue() float32{
 func (i Weapon) getWeight() float32{
 	return i.Base.Weight
 }
+func (i Weapon) getQuantity() float32{
+	return i.Base.Quantity
+}
 
 type Armor struct{
 	Base	Item
@@ -76,6 +85,9 @@ func (i Armor) getValue() float32{
 }
 func (i Armor) getWeight() float32{
 	return i.Base.Weight
+}
+func (i Armor) getQuantity() float32{
+	return i.Base.Quantity
 }
 
 type Player struct {
@@ -100,6 +112,7 @@ type Player struct {
 var dbPass string
 
 func getInventory(player string, db *sql.DB) []Object{
+	//Gets all of the inventory for a the given playername and returns it
 	var ret []Object
 	query := fmt.Sprintf("SELECT name,weight,value,description,quantity,damage,dist,ammo,ac,modifier FROM item where owner=%q",player)
 	results,err := db.Query(query)
@@ -113,35 +126,29 @@ func getInventory(player string, db *sql.DB) []Object{
 		var ammo *string
 		var ac *int
 		var mod *string
-		var quant int
-		if err := results.Scan(&nuItem.Name,&nuItem.Weight,&nuItem.Value,&nuItem.Description,&quant,&dam,&dist,&ammo,&ac,&mod); err != nil{
+		if err := results.Scan(&nuItem.Name,&nuItem.Weight,&nuItem.Value,&nuItem.Description,&nuItem.Quantity,&dam,&dist,&ammo,&ac,&mod); err != nil{
 			continue
 		}
 		if dist != nil {
 			var weaponBox Weapon;
 			weaponBox = Weapon{nuItem,*dam,*dist,*ammo,*mod}
-			for i := 0;i<quant;i++{
 			ret = append(ret,weaponBox)
-			}
 			continue
 		}
 		if ac != nil {
 			var armorBox Armor;
 			armorBox = Armor{nuItem,*ac,*mod}
-			for i := 0;i<quant;i++{
 			ret = append(ret,armorBox)
-			}
 			continue
 		}
-		for i := 0;i<quant;i++{
 			ret = append(ret,nuItem)
-		}
 	}
 	return ret
 }
 
 
 func getPlayer(player string,db *sql.DB) Player{
+	//Get's a specific palyer object from the database
 	query := fmt.Sprintf("SELECT health,maxHealth,strength,dexterity,Intelligence,wisdom,proficiencies,clothes,deathFails,alignment,level,name FROM player where name=%q;",player)
 	res,err := db.Query(query)
 	var nuPlayer Player;
@@ -173,6 +180,7 @@ func getPlayer(player string,db *sql.DB) Player{
 
 
 func routeSelectHandler(w http.ResponseWriter, r *http.Request){
+	//This determines where to redirect to depending on the input page
 	DB,err := sql.Open("mysql",dbPass)
 	if err != nil {
 		fmt.Fprintf(w,"ERROR: COULD NOT TOUCH DB")
@@ -188,6 +196,7 @@ func routeSelectHandler(w http.ResponseWriter, r *http.Request){
 }
 
 func charHandler(w http.ResponseWriter, r *http.Request){
+	//This makes the character in the database
 	DB,err := sql.Open("mysql",dbPass)
 	if err != nil {
 		fmt.Fprintf(w,"ERROR: COULD NOT TOUCH DB")
@@ -210,7 +219,7 @@ func charHandler(w http.ResponseWriter, r *http.Request){
 	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name);
 	_,err = DB.Query(query)
 	if err != nil{
-		fmt.Fprintf(w,"%q couldn't be created <br> <a href=\"./\"> Return to home? </a>",plas.Name)
+		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title></head><body>%q couldn't be created <br> <a href=\"./\"> Return to home? </a></body></html>",plas.Name)
 	return
 	}
 	http.Redirect(w,r,"/viewCharacter",http.StatusSeeOther)
