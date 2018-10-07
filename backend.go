@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"strings"
+	"html/template"
 )
 
 type Object interface{
@@ -47,7 +48,7 @@ func (i Item) getQuantity() float32{
 
 type Weapon struct{
 	Base	Item
-	Damage	int //Specifies number of sides the die has a spell with a save against it has this value
+	Damage	string //Specifies number of sides the die has a spell with a save against it has this value
 	Range	int //in feet
 	Ammo	string //The type of ammunition this is tracked seperatly in the case of spells this is a spell slot
 	Mod	string //This is the trait that is used as the modifier
@@ -106,6 +107,7 @@ type Player struct {
 	Class	string //Currently doesn't do anything
 	Race	string //Currently useless
 	Level	int //The level of the character (does not support multiclassing)
+	Speed	int
 	Name	string
 }
 
@@ -121,7 +123,7 @@ func getInventory(player string, db *sql.DB) []Object{
 	}
 	for results.Next(){
 		var nuItem Item
-		var dam *int
+		var dam *string
 		var dist *int
 		var ammo *string
 		var ac *int
@@ -149,7 +151,7 @@ func getInventory(player string, db *sql.DB) []Object{
 
 func getPlayer(player string,db *sql.DB) Player{
 	//Get's a specific palyer object from the database
-	query := fmt.Sprintf("SELECT health,maxHealth,strength,dexterity,Intelligence,wisdom,proficiencies,clothes,deathFails,alignment,level,name FROM player where name=%q;",player)
+	query := fmt.Sprintf("SELECT health,maxHealth,strength,dexterity,Intelligence,wisdom,proficiencies,clothes,deathFails,alignment,level,name,race,speed,charisma FROM player where name=%q;",player)
 	res,err := db.Query(query)
 	var nuPlayer Player;
 	var prof *string;
@@ -158,7 +160,7 @@ func getPlayer(player string,db *sql.DB) Player{
 		return Player{}
 	}
 	res.Next()
-	if err = res.Scan(&nuPlayer.Health,&nuPlayer.MaxHealth,&nuPlayer.Strength,&nuPlayer.Dexterity,&nuPlayer.Intelligence,&nuPlayer.Wisdom,&prof,&cloth,&nuPlayer.DeathFails,&nuPlayer.Alignment,&nuPlayer.Level,&nuPlayer.Name); err != nil {
+	if err = res.Scan(&nuPlayer.Health,&nuPlayer.MaxHealth,&nuPlayer.Strength,&nuPlayer.Dexterity,&nuPlayer.Intelligence,&nuPlayer.Wisdom,&prof,&cloth,&nuPlayer.DeathFails,&nuPlayer.Alignment,&nuPlayer.Level,&nuPlayer.Name,&nuPlayer.Race,&nuPlayer.Speed,&nuPlayer.Charisma); err != nil {
 		return Player{}
 }
 	inv := getInventory(player,db)
@@ -173,7 +175,7 @@ func getPlayer(player string,db *sql.DB) Player{
 		}
 	}
 	if prof != nil{
-		nuPlayer.Proficienies = strings.Split(*prof," ")
+		nuPlayer.Proficienies = strings.Split(*prof,",")
 	}
 	return nuPlayer
 }
@@ -189,9 +191,9 @@ func routeSelectHandler(w http.ResponseWriter, r *http.Request){
 	defer DB.Close()
 	cur :=getPlayer(r.FormValue("name"),DB)
 	if cur.Name == ""{
-		http.Redirect(w,r,"/makecharacter.html",http.StatusSeeOther)
+		http.Redirect(w,r,"/makecharacter.html",http.StatusFound)
 	} else {
-		http.Redirect(w,r,"/viewCharacter",http.StatusSeeOther)
+		http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",cur.Name),http.StatusFound)
 	}
 }
 
@@ -211,18 +213,65 @@ func charHandler(w http.ResponseWriter, r *http.Request){
 	fmt.Sscanf(r.FormValue("Wisdom"),"%d",&plas.Wisdom)
 	fmt.Sscanf(r.FormValue("Charisma"),"%d",&plas.Charisma)
 	fmt.Sscanf(r.FormValue("Level"),"%d",&plas.Level)
+	fmt.Sscanf(r.FormValue("Speed"),"%d",&plas.Speed)
 	plas.DeathFails = -1
 	plas.Alignment = r.FormValue("Alignment")
 	plas.Class = r.FormValue("Class")
 	plas.Name = r.FormValue("name")
-//Player{empt,r.FormValue("HP"),r.FormValue("HP"),r.FormValue("Strength"),r.FormValue("Dexterity"),r.FormValue("Intelligence"),r.FormValue("Wisdom"),r.FormValue("Charisma"),empts,Armor{},-1,r.FormValue("Alignment"),r.FormValue("Class"),r.FormValue("race"),r.FormValue("Level"),r.FormValue("name")}
-	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name);
+	plas.Race = r.FormValue("race")
+	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name,race,speed,charisma) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q,%q,%d,%d);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name,plas.Race,plas.Speed,plas.Charisma);
 	_,err = DB.Query(query)
 	if err != nil{
 		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title></head><body>%q couldn't be created <br> <a href=\"./\"> Return to home? </a></body></html>",plas.Name)
 	return
 	}
-	http.Redirect(w,r,"/viewCharacter",http.StatusSeeOther)
+	http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",plas.Name),http.StatusFound)
+}
+
+func finalHandler(w http.ResponseWriter,r *http.Request){
+	//Handles serving of the main page
+	nome := r.FormValue("name")
+	if nome == "" {
+		http.Redirect(w,r,"/",http.StatusSeeOther)
+		return
+	}
+	DB,err := sql.Open("mysql",dbPass)
+	if err != nil {
+		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title> Something is wrong with the Database </body></html>")
+		return
+	}
+	defer DB.Close()
+	plas := getPlayer(nome,DB)
+	if plas.Name != nome {
+		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title> Player %q not found</body></html>",nome)
+		return
+	}
+	top,err := template.ParseFiles("./ftop.html")
+	if err != nil {
+		fmt.Fprintf(w,"<!DOCTYPE HTML><html><head><title>dnd-manager</title> Template Couldn't be Parsed</body></html>")
+		return
+
+	}
+	_ = top.Execute(w,plas)
+	weap,_ := template.ParseFiles("./weaponrack.html")
+	fmt.Fprintf(w,"<br><table><tr><th>Weapon</th><th>Damage</th><th>Ammo</th><th>Modifier</th><th>Description</th></tr>")
+	for _,i := range plas.Inventory {
+		switch v:= i.(type) {
+			case Weapon:
+				ammCount := 0.0
+				for _,j := range plas.Inventory{
+					if j.getName() == v.Ammo{
+						ammCount+= float64(j.getQuantity())
+					}
+					v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
+				}
+				weap.Execute(w,v)
+			default:
+				continue
+		}
+	}
+	fmt.Fprintf(w,"</table>")
+	fmt.Fprintf(w,"<br><table><tr><th>Namer</th><th>Quantity</th><th>Weight</th><th>Description</th><th>Description</th></tr>")
 }
 
 
@@ -231,6 +280,7 @@ func main(){
 	port := ":8080"
 	http.HandleFunc("/routelogin",routeSelectHandler)
 	http.HandleFunc("/makechar",charHandler)
+	http.HandleFunc("/viewCharacter",finalHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
 	fmt.Printf("Listening on port %s",port)
 	http.ListenAndServe(port,nil)
