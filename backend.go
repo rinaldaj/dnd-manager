@@ -171,6 +171,7 @@ func getPlayer(player string,db *sql.DB) Player{
 	return nuPlayer
 }
 
+
 func routeSelectHandler(w http.ResponseWriter, r *http.Request){
 	DB,err := sql.Open("mysql",dbPass)
 	if err != nil {
@@ -186,13 +187,41 @@ func routeSelectHandler(w http.ResponseWriter, r *http.Request){
 	}
 }
 
+func charHandler(w http.ResponseWriter, r *http.Request){
+	DB,err := sql.Open("mysql",dbPass)
+	if err != nil {
+		fmt.Fprintf(w,"ERROR: COULD NOT TOUCH DB")
+		return
+	}
+	plas := Player{}
+	fmt.Sscanf(r.FormValue("HP"),"%d",&plas.Health)
+	fmt.Sscanf(r.FormValue("HP"),"%d",&plas.MaxHealth)
+	fmt.Sscanf(r.FormValue("Strength"),"%d",&plas.Strength)
+	fmt.Sscanf(r.FormValue("Dexterity"),"%d",&plas.Dexterity)
+	fmt.Sscanf(r.FormValue("Intelligence"),"%d",&plas.Intelligence)
+	fmt.Sscanf(r.FormValue("Wisdom"),"%d",&plas.Wisdom)
+	fmt.Sscanf(r.FormValue("Charisma"),"%d",&plas.Charisma)
+	fmt.Sscanf(r.FormValue("Level"),"%d",&plas.Level)
+	plas.DeathFails = -1
+	plas.Alignment = r.FormValue("Alignment")
+	plas.Class = r.FormValue("Class")
+	plas.Name = r.FormValue("name")
+//Player{empt,r.FormValue("HP"),r.FormValue("HP"),r.FormValue("Strength"),r.FormValue("Dexterity"),r.FormValue("Intelligence"),r.FormValue("Wisdom"),r.FormValue("Charisma"),empts,Armor{},-1,r.FormValue("Alignment"),r.FormValue("Class"),r.FormValue("race"),r.FormValue("Level"),r.FormValue("name")}
+	query := fmt.Sprintf("INSERT INTO player(health,maxHealth,strength,dexterity,Intelligence,wisdom,deathFails,alignment,level,name) VALUES(%d,%d,%d,%d,%d,%d,%d,%q,%d,%q);",plas.Health,plas.MaxHealth,plas.Strength,plas.Dexterity,plas.Intelligence,plas.Wisdom,plas.DeathFails,plas.Alignment,plas.Level,plas.Name);
+	_,err = DB.Query(query)
+	if err != nil{
+		fmt.Fprintf(w,"%q couldn't be created <br> <a href=\"./\"> Return to home? </a>",plas.Name)
+	return
+	}
+	http.Redirect(w,r,"/viewCharacter",http.StatusSeeOther)
+}
+
 
 func main(){
 	dbPass = "root:@/dnd"
-	DB,_ := sql.Open("mysql",dbPass)
-	plas := getPlayer("loser",DB)
 	port := ":8080"
 	http.HandleFunc("/routelogin",routeSelectHandler)
+	http.HandleFunc("/makechar",charHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
 	fmt.Printf("Listening on port %s",port)
 	http.ListenAndServe(port,nil)
