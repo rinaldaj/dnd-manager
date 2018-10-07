@@ -314,16 +314,24 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 	totalMass := 0.0
 	for _,i := range plas.Inventory{
 		totalMass += i.getWeight() * i.getQuantity()
+		thingBox := struct{
+			Arm	Item
+			Uname	string
+		}{}
 		switch v := i.(type){
 			case Weapon:
-				stuffs.Execute(w,v.Base)
+				//stuffs.Execute(w,v.Base)
+				thingBox.Arm = v.Base
 			case Armor:
-				stuffs.Execute(w,v.Base)
+				thingBox.Arm = v.Base
 			case Item:
-				stuffs.Execute(w,v)
+				thingBox.Arm = v
 		}
+		thingBox.Uname = plas.Name
+		//fmt.Println(thingBox)
+		stuffs.Execute(w,thingBox)
 	}
-	weightBar,_ := template.New("weightBar").Parse("Weight Carried: {{.Weight}}, Carry Weight: {{.WeightMax}}<br>")
+	weightBar,_ := template.New("weightBar").Parse("<br>Weight Carried: {{.Weight}}, Carry Weight: {{.WeightMax}}<br>")
 	weightBox := struct{
 		Weight	float64
 		WeightMax	int
@@ -332,7 +340,6 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 		(10*plas.Strength),
 	}
 	weightBar.Execute(w,weightBox)
-	//fmt.Fprintf(w,"Weight Carried: %f, Carry Weight: %d",totalMass,plas.Strength * 5)
 	addItemBar,_ := template.ParseFiles("./addItem.html")
 	addItemBar.Execute(w,plas)
 }
