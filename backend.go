@@ -164,6 +164,7 @@ func updatePlayer(player Player,db *sql.DB){
 			fmt.Printf("Error: %q, Query: %q",err,query)
 		}
 	}
+	db.Query("DELETE FROM item WHERE quantity<=0;")
 }
 
 func getPlayer(player string,db *sql.DB) Player{
@@ -410,16 +411,19 @@ func useItemHandler(w http.ResponseWriter,r *http.Request){
 	switch v:= owner.Inventory[i].(type) {
 		case Weapon:
 			for i,j := range owner.Inventory{
-				if j.getName() == v.Ammo && v.Ammo != ""{
+				if j.getName() == v.Ammo && strings.TrimSpace(v.Ammo) != ""{
 					switch l:= j.(type){
 						case Weapon:
+							fmt.Printf("Weaponamm\n")
 							l.Base.Quantity--
 							owner.Inventory[i] = l
 						case Armor:
+							fmt.Printf("armor\n")
 							l.Base.Quantity--
 							owner.Inventory[i] = l
 						case Item:
 							l.Quantity--
+							fmt.Printf("armor\n",v)
 							owner.Inventory[i] = l
 					}
 				}
