@@ -1,3 +1,8 @@
 <p><form action="/additem" method="POST">
- Item name:<input type="text" name="name"> Quantity:<input type="number" step=".00001" name="quantity"> Weight:<input type="number" step=".00001" name="weight">Value:<input type="number" step=".00001" name="value"> Description:<input type="text" name="description"> <input type="submit" value="Modify Item"><input type="hidden" name="cname" value="{{.Name}}">
+ Item name:<input type="text" name="name"> Quantity:<input type="number" step=".00001" name="quantity"> Weight:<input type="number" step=".00001" name="weight">Value:<input type="number" step=".00001" name="value"> Description:<input type="text" name="description"> Damage: <input type="text" name="damage">
+Range: <input type="number" name="range">
+Ammo: <input type="text" name="ammo">
+AC: <input type="number" name="AC">
+Modifier: <input type="text" name="modifier">
+<input type="submit" value="Modify Item"><input type="hidden" name="cname" value="{{.Name}}">
 </form> </p>

@@ -362,6 +362,32 @@ func addItemHandler(w http.ResponseWriter,r *http.Request){
 	savant.Weight,_ = strconv.ParseFloat(r.FormValue("weight"),64)
 	savant.Quantity,_ = strconv.ParseFloat(r.FormValue("quantity"),64)
 	savant.Value,_ = strconv.ParseFloat(r.FormValue("value"),64)
+	rangeHolder := r.FormValue("range")
+	ammoHolder := r.FormValue("ammo")
+	acHolder := r.FormValue("AC")
+	damageHolder := r.FormValue("damage")
+	modHolder := r.FormValue("modifier")
+	var savan Object;
+	if damageHolder != ""{
+		fmt.Println(damageHolder) 
+		var weaponss Weapon;
+		weaponss.Base = savant
+		tmp,_:= strconv.ParseInt(rangeHolder,10,32)
+		weaponss.Range=int(tmp)
+		weaponss.Ammo = ammoHolder
+		weaponss.Damage = damageHolder
+		weaponss.Mod = modHolder
+		savan = weaponss
+	} else if acHolder != "" {
+		var armss Armor
+		armss.Base = savant
+		tmp,_ := strconv.ParseInt(acHolder,10,32)
+		armss.AC=int(tmp)
+		armss.Mod = modHolder
+		savan = armss
+	} else {
+		savan = savant
+	}
 	DB,err := sql.Open("mysql",dbPass)
 	if err != nil{
 		fmt.Printf("DBERR: %q\n",err)
@@ -373,8 +399,8 @@ func addItemHandler(w http.ResponseWriter,r *http.Request){
 	}
 	flashflag := false
 	for index,i := range owner.Inventory {
-		if i.getName() == savant.getName(){
-			owner.Inventory[index] = savant
+		if i.getName() == savan.getName(){
+			owner.Inventory[index] = savan
 			flashflag = true
 			break
 		}
@@ -382,8 +408,17 @@ func addItemHandler(w http.ResponseWriter,r *http.Request){
 	}
 	if !flashflag {
 		//owner.Inventory = append(owner.Inventory,savant)
-		query := fmt.Sprintf("INSERT INTO item(name,weight,value,description,quantity,owner) VALUES(%q,%f,%f,%q,%f,%q)",savant.getName(),savant.getWeight(),savant.getValue(),savant.getDescription(),savant.getQuantity(),owner.Name)
+		query := fmt.Sprintf("INSERT INTO item(name,weight,value,description,quantity,owner) VALUES(%q,%f,%f,%q,%f,%q)",savan.getName(),savan.getWeight(),savan.getValue(),savan.getDescription(),savan.getQuantity(),owner.Name)
 	DB.Query(query)
+	switch v:=savan.(type){
+		case Weapon:
+			query = fmt.Sprintf("UPDATE item SET damage=%q,dist=%d,ammo=%q,modifier=%q where owner=%q and name=%q;",v.Damage,v.Range,v.Ammo,v.Mod,owner.Name,v.getName())
+		case Armor:
+			query = fmt.Sprintf("UPDATE item SET ac=%d,modifier=%q where owner=%q and name=%q",v.AC,v.Mod,owner.Name,v.getName())
+		default:
+			query = "SELECT * FROM item;"
+	}
+			DB.Query(query)
 	}
 	updatePlayer(owner,DB)
 		http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",owner.Name),http.StatusFound)
