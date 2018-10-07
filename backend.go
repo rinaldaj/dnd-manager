@@ -254,7 +254,22 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 		return
 
 	}
-	_ = top.Execute(w,plas)
+	plasWrap := struct {
+		Pl	Player
+		StrMod	int
+		DexMod	int
+		IntMod	int
+		WisMod	int
+		ChaMod	int
+	}{
+		plas,
+		((plas.Strength -10)/2),
+		((plas.Dexterity -10)/2),
+		((plas.Intelligence -10)/2),
+		((plas.Wisdom -10)/2),
+		((plas.Charisma -10)/2),
+	}
+	_ = top.Execute(w,plasWrap)
 	weap,_ := template.ParseFiles("./weaponrack.html")
 	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Weapon</th><th>Damage</th><th>Ammo</th><th>Modifier</th><th>Description</th></tr>")
 	for _,i := range plas.Inventory {
@@ -266,7 +281,9 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 						ammCount+= float64(j.getQuantity())
 					}
 				}
-				v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
+				if v.Ammo != ""{
+					v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
+				}
 				weap.Execute(w,v)
 			default:
 				continue

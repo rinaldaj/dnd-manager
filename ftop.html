@@ -2,12 +2,12 @@
 <html>
 <head>
 <title>
-{{.Name}}
+{{.Pl.Name}}
 </title>
 </head>
 <body>
-{{.Name}} {{.Class}} Level: {{.Level}} Race: {{.Race}} Alignment: {{.Alignment}}
+{{.Pl.Name}} {{.Pl.Class}} Level: {{.Pl.Level}} Race: {{.Pl.Race}} Alignment: {{.Pl.Alignment}}
 <br>
-Health: {{.Health}} / {{.MaxHealth}}, AC: {{.Clothes.AC}}, Speed: {{.Speed}}, STR: {{.Strength}}, DEX:{{.Dexterity}}, INT: {{.Intelligence}}, WIS:{{.Wisdom}}, Charisma: {{.Charisma}}
+Health: {{.Pl.Health}} / {{.Pl.MaxHealth}}, AC: {{.Pl.Clothes.AC}}, Speed: {{.Pl.Speed}}, STR: {{.Pl.Strength}}({{.StrMod}}), DEX:{{.Pl.Dexterity}}({{.DexMod}}), INT: {{.Pl.Intelligence}}({{.IntMod}}), WIS:{{.Pl.Wisdom}}({{.WisMod}}), Charisma: {{.Pl.Charisma}}({{.ChaMod}})
 <br>
-{{.Proficienies}}
+{{.Pl.Proficienies}}
