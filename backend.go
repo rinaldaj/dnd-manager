@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type Item struct {
