@@ -11,10 +11,10 @@ import (
 
 type Object interface{
 	getName() string
-	getWeight() float32
-	getValue()	float32
+	getWeight() float64
+	getValue()	float64
 	getDescription()	string
-	getQuantity()	float32
+	getQuantity()	float64
 }
 
 
@@ -22,13 +22,13 @@ type Item struct {
 	//WHat the item is called
 	Name	string
 	//Weight is weight in lbs
-	Weight	float32
+	Weight	float64
 	//value is in gold coins
-	Value	float32
+	Value	float64
 	//The description of an item
 	Description	string
 	//How many one has
-	Quantity	float32
+	Quantity	float64
 }
 func (i Item) getName() string{
 	return i.Name
@@ -36,13 +36,13 @@ func (i Item) getName() string{
 func (i Item) getDescription() string{
 	return i.Description
 }
-func (i Item) getValue() float32{
+func (i Item) getValue() float64{
 	return i.Value
 }
-func (i Item) getWeight() float32{
+func (i Item) getWeight() float64{
 	return i.Weight
 }
-func (i Item) getQuantity() float32{
+func (i Item) getQuantity() float64{
 	return i.Quantity
 }
 
@@ -59,13 +59,13 @@ func (i Weapon) getName() string{
 func (i Weapon) getDescription() string{
 	return i.Base.Description
 }
-func (i Weapon) getValue() float32{
+func (i Weapon) getValue() float64{
 	return i.Base.Value
 }
-func (i Weapon) getWeight() float32{
+func (i Weapon) getWeight() float64{
 	return i.Base.Weight
 }
-func (i Weapon) getQuantity() float32{
+func (i Weapon) getQuantity() float64{
 	return i.Base.Quantity
 }
 
@@ -81,13 +81,13 @@ func (i Armor) getName() string{
 func (i Armor) getDescription() string{
 	return i.Base.Description
 }
-func (i Armor) getValue() float32{
+func (i Armor) getValue() float64{
 	return i.Base.Value
 }
-func (i Armor) getWeight() float32{
+func (i Armor) getWeight() float64{
 	return i.Base.Weight
 }
-func (i Armor) getQuantity() float32{
+func (i Armor) getQuantity() float64{
 	return i.Base.Quantity
 }
 
@@ -254,7 +254,7 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 	}
 	_ = top.Execute(w,plas)
 	weap,_ := template.ParseFiles("./weaponrack.html")
-	fmt.Fprintf(w,"<br><table><tr><th>Weapon</th><th>Damage</th><th>Ammo</th><th>Modifier</th><th>Description</th></tr>")
+	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Weapon</th><th>Damage</th><th>Ammo</th><th>Modifier</th><th>Description</th></tr>")
 	for _,i := range plas.Inventory {
 		switch v:= i.(type) {
 			case Weapon:
@@ -263,15 +263,29 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 					if j.getName() == v.Ammo{
 						ammCount+= float64(j.getQuantity())
 					}
-					v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
 				}
+				v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
 				weap.Execute(w,v)
 			default:
 				continue
 		}
 	}
 	fmt.Fprintf(w,"</table>")
-	fmt.Fprintf(w,"<br><table><tr><th>Namer</th><th>Quantity</th><th>Weight</th><th>Description</th><th>Description</th></tr>")
+	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Name</th><th>Quantity</th><th>Weight</th><th>Description</th><th>Description</th></tr>")
+	stuffs,_ := template.ParseFiles("./stuff.html")
+	totalMass := 0.0
+	for _,i := range plas.Inventory{
+		totalMass += i.getWeight()
+		switch v := i.(type){
+			case Weapon:
+				stuffs.Execute(w,v.Base)
+			case Armor:
+				stuffs.Execute(w,v.Base)
+			case Item:
+				stuffs.Execute(w,v)
+		}
+	}
+	fmt.Fprintf(w,"Weight Carried: %f, Carry Weight: %d",totalMass,plas.Strength * 5)
 }
 
 
