@@ -301,7 +301,9 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 				if v.Ammo != ""{
 					v.Ammo = fmt.Sprintf("%s / %f",v.Ammo,ammCount)
 				}
-				weap.Execute(w,v)
+				armsWrapper := struct {Arm Weapon
+					Uname	string}{v,plas.Name}
+				weap.Execute(w,armsWrapper)
 			default:
 				continue
 		}
@@ -378,6 +380,53 @@ func addItemHandler(w http.ResponseWriter,r *http.Request){
 		http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",owner.Name),http.StatusFound)
 }
 
+func useItemHandler(w http.ResponseWriter,r *http.Request){
+	DB,err := sql.Open("mysql",dbPass)
+	if err != nil{
+		fmt.Printf("DBERR: %q\n",err)
+	}
+	owner := getPlayer(r.FormValue("uname"),DB)
+	goal := r.FormValue("item")
+	i := 0
+	for k,thing := range owner.Inventory{
+		if goal == thing.getName(){
+			i=k
+			break
+		}
+	}
+	if owner.Inventory[i].getName() != goal || goal == "" {
+		http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",owner.Name),http.StatusFound)
+		return
+	}
+	//Find ammo
+	switch v:= owner.Inventory[i].(type) {
+		case Weapon:
+			for i,j := range owner.Inventory{
+				if j.getName() == v.Ammo && v.Ammo != ""{
+					switch l:= j.(type){
+						case Weapon:
+							l.Base.Quantity--
+							owner.Inventory[i] = l
+						case Armor:
+							l.Base.Quantity--
+							owner.Inventory[i] = l
+						case Item:
+							l.Quantity--
+							owner.Inventory[i] = l
+					}
+				}
+			}
+		case Item:
+			v.Quantity--;
+			owner.Inventory[i] = v
+		case Armor:
+			owner.Clothes = v;
+	}
+	updatePlayer(owner,DB)
+	http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",owner.Name),http.StatusFound)
+	return
+}
+
 
 func main(){
 	dbPass = "root:@/dnd"
@@ -385,6 +434,7 @@ func main(){
 	http.HandleFunc("/routelogin",routeSelectHandler)
 	http.HandleFunc("/makechar",charHandler)
 	http.HandleFunc("/viewCharacter",finalHandler)
+	http.HandleFunc("/useItem",useItemHandler)
 	http.HandleFunc("/additem",addItemHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
 	fmt.Printf("Listening on port %s\n",port)

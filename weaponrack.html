@@ -1,7 +1,8 @@
 <tr>
-	<td> {{.Base.Name}} </td>
-	<td> {{.Damage}} </td>
-	<td> {{.Ammo}} </td>
-	<td> {{.Mod}} </td>
-	<td> {{.Base.Description}} </td>
+	<td> {{.Arm.Base.Name}} </td>
+	<td> {{.Arm.Damage}} </td>
+	<td> {{.Arm.Ammo}} </td>
+	<td> {{.Arm.Mod}} </td>
+	<td> {{.Arm.Base.Description}} </td>
+	<td> <form action="/useItem" method="post"><input type="submit" value="Use Item"><input type="hidden" name="item" value="{{.Arm.Base.Name}}"><input type="hidden" name="uname" value="{{.Uname}}"></form></td>
 </tr>
