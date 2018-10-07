@@ -5,7 +5,16 @@ import (
 	"net/http"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"strings"
 )
+
+type Object interface{
+	getName() string
+	getWeight() float32
+	getValue()	float32
+	getDescription()	string
+}
+
 
 type Item struct {
 	//WHat the item is called
@@ -17,29 +26,65 @@ type Item struct {
 	//The description of an item
 	Description	string
 }
+func (i Item) getName() string{
+	return i.Name
+}
+func (i Item) getDescription() string{
+	return i.Description
+}
+func (i Item) getValue() float32{
+	return i.Value
+}
+func (i Item) getWeight() float32{
+	return i.Weight
+}
 
 type Weapon struct{
-	Item
+	Base	Item
 	Damage	int //Specifies number of sides the die has a spell with a save against it has this value
 	Range	int //in feet
 	Ammo	string //The type of ammunition this is tracked seperatly in the case of spells this is a spell slot
 	Mod	string //This is the trait that is used as the modifier
 }
+func (i Weapon) getName() string{
+	return i.Base.Name
+}
+func (i Weapon) getDescription() string{
+	return i.Base.Description
+}
+func (i Weapon) getValue() float32{
+	return i.Base.Value
+}
+func (i Weapon) getWeight() float32{
+	return i.Base.Weight
+}
 
 type Armor struct{
-	Item
+	Base	Item
 	AC	int
 	Mod	string
 }
 
+func (i Armor) getName() string{
+	return i.Base.Name
+}
+func (i Armor) getDescription() string{
+	return i.Base.Description
+}
+func (i Armor) getValue() float32{
+	return i.Base.Value
+}
+func (i Armor) getWeight() float32{
+	return i.Base.Weight
+}
 
 type Player struct {
-	Inventory	[]Item
+	Inventory	[]Object
 	Health	int
 	MaxHealth	int
 	Strength	int
 	Dexterity	int
-	Intellegence	int
+	Intelligence	int
 	Wisdom	int
 	Charisma	int
 	Proficienies	[]string//THis is a list of strings specifying proficiency
@@ -49,14 +94,103 @@ type Player struct {
 	Class	string //Currently doesn't do anything
 	Race	string //Currently useless
 	Level	int //The level of the character (does not support multiclassing)
+	Name	string
+}
+
+var dbPass string
+
+func getInventory(player string, db *sql.DB) []Object{
+	var ret []Object
+	query := fmt.Sprintf("SELECT name,weight,value,description,quantity,damage,dist,ammo,ac,modifier FROM item where owner=%q",player)
+	results,err := db.Query(query)
+	if err != nil {
+		return ret
+	}
+	for results.Next(){
+		var nuItem Item
+		var dam *int
+		var dist *int
+		var ammo *string
+		var ac *int
+		var mod *string
+		var quant int
+		if err := results.Scan(&nuItem.Name,&nuItem.Weight,&nuItem.Value,&nuItem.Description,&quant,&dam,&dist,&ammo,&ac,&mod); err != nil{
+			continue
+		}
+		if dist != nil {
+			var weaponBox Weapon;
+			weaponBox = Weapon{nuItem,*dam,*dist,*ammo,*mod}
+			for i := 0;i<quant;i++{
+			ret = append(ret,weaponBox)
+			}
+			continue
+		}
+		if ac != nil {
+			var armorBox Armor;
+			armorBox = Armor{nuItem,*ac,*mod}
+			for i := 0;i<quant;i++{
+			ret = append(ret,armorBox)
+			}
+			continue
+		}
+		for i := 0;i<quant;i++{
+			ret = append(ret,nuItem)
+		}
+	}
+	return ret
+}
+
+
+func getPlayer(player string,db *sql.DB) Player{
+	query := fmt.Sprintf("SELECT health,maxHealth,strength,dexterity,Intelligence,wisdom,proficiencies,clothes,deathFails,alignment,level,name FROM player where name=%q;",player)
+	res,err := db.Query(query)
+	var nuPlayer Player;
+	var prof *string;
+	var cloth *string;
+	if err != nil {
+		return Player{}
+	}
+	res.Next()
+	if err = res.Scan(&nuPlayer.Health,&nuPlayer.MaxHealth,&nuPlayer.Strength,&nuPlayer.Dexterity,&nuPlayer.Intelligence,&nuPlayer.Wisdom,&prof,&cloth,&nuPlayer.DeathFails,&nuPlayer.Alignment,&nuPlayer.Level,&nuPlayer.Name); err != nil {
+		return Player{}
+}
+	inv := getInventory(player,db)
+	nuPlayer.Inventory = inv
+	for _,i := range inv {
+		switch v := i.(type){
+			case Armor:
+				if cloth != nil && i.getName() == *cloth{
+					nuPlayer.Clothes = v
+					break
+				}
+		}
+	}
+	if prof != nil{
+		nuPlayer.Proficienies = strings.Split(*prof," ")
+	}
+	return nuPlayer
 }
 
 func routeSelectHandler(w http.ResponseWriter, r *http.Request){
-	fmt.Fprintf(w,":)%q","Lorem ipsum")
+	DB,err := sql.Open("mysql",dbPass)
+	if err != nil {
+		fmt.Fprintf(w,"ERROR: COULD NOT TOUCH DB")
+		return
+	}
+	defer DB.Close()
+	cur :=getPlayer(r.FormValue("name"),DB)
+	if cur.Name == ""{
+		http.Redirect(w,r,"/makecharacter.html",http.StatusSeeOther)
+	} else {
+		http.Redirect(w,r,"/viewCharacter",http.StatusSeeOther)
+	}
 }
 
 
 func main(){
+	dbPass = "root:@/dnd"
+	DB,_ := sql.Open("mysql",dbPass)
+	plas := getPlayer("loser",DB)
 	port := ":8080"
 	http.HandleFunc("/routelogin",routeSelectHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
