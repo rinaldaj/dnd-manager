@@ -49,10 +49,14 @@ type Player struct {
 	Class	string //Currently doesn't do anything
 }
 
-
+func routeSelectHandler(w http.ResponseWriter, r *http.Request){
+	fmt.Fprintf(w,":)%q","Lorem ipsum")
+}
 
 
 func main(){
-
-fmt.Println("Hello World")
+	port = ":8080"
+	http.HandleFunc("/routelogin",routeSelectHandler)
+	http.Handle("/",http.FileServer(http.Dir("./static")))
+	http.ListenAndServe(port,nil)
 }
