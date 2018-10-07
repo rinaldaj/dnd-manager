@@ -7,6 +7,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"strings"
 	"html/template"
+	"strconv"
 )
 
 type Object interface{
@@ -148,6 +149,22 @@ func getInventory(player string, db *sql.DB) []Object{
 	return ret
 }
 
+func updatePlayer(player Player,db *sql.DB){
+	//Saves a player to db
+	query := fmt.Sprintf("UPDATE player SET health=%d,maxHealth=%d,strength=%d,dexterity=%d,Intelligence=%d,wisdom=%d,proficiencies=%q,clothes=%q,deathFails=%d,alignment=%q,level=%d,race=%q,speed=%d,charisma=%d where name=%q;",player.Health,player.MaxHealth,player.Strength,player.Dexterity,player.Intelligence,player.Wisdom,processToDb(player.Proficienies),player.Clothes.getName(),player.DeathFails,player.Alignment,player.Level,player.Race,player.Speed,player.Charisma,player.Name)
+	_,err := db.Query(query)
+	if err != nil {
+		fmt.Printf("Bad query %s\n",err)
+		return
+	}
+	for _,i := range player.Inventory{
+		query = fmt.Sprintf("UPDATE item SET weight=%f,value=%f,description=%q,quantity=%f where name=%q and owner=%q;",i.getWeight(),i.getValue(),i.getDescription(),i.getQuantity(),i.getName(),player.Name)
+		_,err = db.Query(query)
+		if err != nil{
+			fmt.Printf("Error: %q, Query: %q",err,query)
+		}
+	}
+}
 
 func getPlayer(player string,db *sql.DB) Player{
 	//Get's a specific palyer object from the database
@@ -290,11 +307,11 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 		}
 	}
 	fmt.Fprintf(w,"</table>")
-	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Name</th><th>Quantity</th><th>Weight</th><th>Description</th><th>Description</th></tr>")
+	fmt.Fprintf(w,"<br><table style=\"width:100%%\"><tr><th>Name</th><th>Quantity</th><th>Weight</th><th>value</th><th>Description</th></tr>")
 	stuffs,_ := template.ParseFiles("./stuff.html")
 	totalMass := 0.0
 	for _,i := range plas.Inventory{
-		totalMass += i.getWeight()
+		totalMass += i.getWeight() * i.getQuantity()
 		switch v := i.(type){
 			case Weapon:
 				stuffs.Execute(w,v.Base)
@@ -304,7 +321,18 @@ func finalHandler(w http.ResponseWriter,r *http.Request){
 				stuffs.Execute(w,v)
 		}
 	}
-	fmt.Fprintf(w,"Weight Carried: %f, Carry Weight: %d",totalMass,plas.Strength * 5)
+	weightBar,_ := template.New("weightBar").Parse("Weight Carried: {{.Weight}}, Carry Weight: {{.WeightMax}}<br>")
+	weightBox := struct{
+		Weight	float64
+		WeightMax	int
+	}{
+		totalMass,
+		(10*plas.Strength),
+	}
+	weightBar.Execute(w,weightBox)
+	//fmt.Fprintf(w,"Weight Carried: %f, Carry Weight: %d",totalMass,plas.Strength * 5)
+	addItemBar,_ := template.ParseFiles("./addItem.html")
+	addItemBar.Execute(w,plas)
 }
 
 func processToDb(x []string) string{
@@ -316,6 +344,40 @@ func processToDb(x []string) string{
 	return strings.TrimSuffix(ret,",")
 }
 
+func addItemHandler(w http.ResponseWriter,r *http.Request){
+	savant := Item{}
+	savant.Name = r.FormValue("name")
+	savant.Description = r.FormValue("description")
+	savant.Weight,_ = strconv.ParseFloat(r.FormValue("weight"),64)
+	savant.Quantity,_ = strconv.ParseFloat(r.FormValue("quantity"),64)
+	savant.Value,_ = strconv.ParseFloat(r.FormValue("value"),64)
+	DB,err := sql.Open("mysql",dbPass)
+	if err != nil{
+		fmt.Printf("DBERR: %q\n",err)
+	}
+	owner := getPlayer(r.FormValue("cname"),DB)
+	if owner.Name == ""{
+		fmt.Fprintf(w,"Player not found")
+		return
+	}
+	flashflag := false
+	for index,i := range owner.Inventory {
+		if i.getName() == savant.getName(){
+			owner.Inventory[index] = savant
+			flashflag = true
+			break
+		}
+
+	}
+	if !flashflag {
+		//owner.Inventory = append(owner.Inventory,savant)
+		query := fmt.Sprintf("INSERT INTO item(name,weight,value,description,quantity,owner) VALUES(%q,%f,%f,%q,%f,%q)",savant.getName(),savant.getWeight(),savant.getValue(),savant.getDescription(),savant.getQuantity(),owner.Name)
+	DB.Query(query)
+	}
+	updatePlayer(owner,DB)
+		http.Redirect(w,r,fmt.Sprintf("/viewCharacter?name=%s",owner.Name),http.StatusFound)
+}
+
 
 func main(){
 	dbPass = "root:@/dnd"
@@ -323,6 +385,7 @@ func main(){
 	http.HandleFunc("/routelogin",routeSelectHandler)
 	http.HandleFunc("/makechar",charHandler)
 	http.HandleFunc("/viewCharacter",finalHandler)
+	http.HandleFunc("/additem",addItemHandler)
 	http.Handle("/",http.FileServer(http.Dir("./static")))
 	fmt.Printf("Listening on port %s\n",port)
 	http.ListenAndServe(port,nil)
