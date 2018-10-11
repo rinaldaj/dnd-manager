@@ -369,7 +369,6 @@ func addItemHandler(w http.ResponseWriter,r *http.Request){
 	modHolder := r.FormValue("modifier")
 	var savan Object;
 	if damageHolder != ""{
-		fmt.Println(damageHolder) 
 		var weaponss Weapon;
 		weaponss.Base = savant
 		tmp,_:= strconv.ParseInt(rangeHolder,10,32)
@@ -449,16 +448,13 @@ func useItemHandler(w http.ResponseWriter,r *http.Request){
 				if j.getName() == v.Ammo && strings.TrimSpace(v.Ammo) != ""{
 					switch l:= j.(type){
 						case Weapon:
-							fmt.Printf("Weaponamm\n")
 							l.Base.Quantity--
 							owner.Inventory[i] = l
 						case Armor:
-							fmt.Printf("armor\n")
 							l.Base.Quantity--
 							owner.Inventory[i] = l
 						case Item:
 							l.Quantity--
-							fmt.Printf("armor\n",v)
 							owner.Inventory[i] = l
 					}
 				}
